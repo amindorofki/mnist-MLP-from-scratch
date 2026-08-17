@@ -6,7 +6,7 @@ import numpy as np
 
 # import custom build modules from src
 
-from activations import ReLU, Softmax
+from src.activations import ReLU, Softmax
 from src.data import MNISTloader
 from src.layers import Dense
 from src.losses import Crossenthropy
@@ -26,8 +26,8 @@ def plot_metrics(history: dict):
     ax1.plot(epochs, history["loss"], "b-o", label = "Train Loss")
     ax1.set_title("Training Loss")
     ax1.set_xlabel("Epochs")
-    ax1.y_label('Loss')
-    ax1.grid(true)
+    ax1.set_ylabel('Loss')
+    ax1.grid(True)
     ax1.legend()
 
     #Accuracy plot
@@ -119,8 +119,8 @@ def main():
         history["loss"].append(epoch_loss)
         history["acc"].append(epoch_acc)
 
-    print(f"Epoch {epoch:02d}/{EPOCHS:02d} | Loss: {epoch_loss:0.4f} | Train Acc: {epoch_acc:.2f}%")
-    total_time = time.time() - strt_time 
+        print(f"Epoch {epoch:02d}/{EPOCHS:02d} | Loss: {epoch_loss:0.4f} | Train Acc: {epoch_acc:.2f}%")
+    total_time = time.time() - start_time 
     print(f"\n Training completed in {total_time:.2f} seconds")
 
     #------------ Evluation on test set ------------
