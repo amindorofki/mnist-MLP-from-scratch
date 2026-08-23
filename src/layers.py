@@ -28,15 +28,14 @@ class Dense:
         self.X = X
         return np.dot(X, self.W) + self.b
 
-    def backward(self, dZ:np.ndarray) -> np.ndarray:
+    def backward(self, dZ:np.ndarray, l2_lambda: float=0.0) -> np.ndarray:
         "computes gradients for w and b and propagates error to previous layer"
 
         self.dW = np.dot(self.X.T, dZ)
-
         self.db = np.sum(dZ, axis=0, keepdims=True)
-
         dX = np.dot(dZ, self.W.T)
-
+        
+        self.dW += l2_lambda * self.W 
         return dX
 
 

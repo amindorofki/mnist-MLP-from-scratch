@@ -37,6 +37,14 @@ class MNISTloader:
 
         return one_hot
 
+def train_val_split(X: np.ndarray, Y: np.ndarray, val_ratio: float=0.1, seed: int=10):
+        "split training set into train and validation sets"
+        rng = np.random.RandomState(seed)
+        n = X.shape[0]
+        indices = rng.permutation(n)
+        valz_size = int(n * val_ratio)
+        val_idx, train_idx = indices[:valz_size], indices[valz_size:]
+        return X[train_idx], Y[train_idx], X[val_idx], Y[val_idx]
 
 if __name__ == "__main__":
     loader = MNISTloader()

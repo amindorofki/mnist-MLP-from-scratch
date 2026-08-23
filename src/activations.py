@@ -36,6 +36,9 @@ class Softmax:
         self.out = prob
         return prob
 
+    def backward(self, dZ: np.ndarray) -> np.ndarray:
+        return dZ
+
 
 if __name__ == "__main__":
     #test ReLU

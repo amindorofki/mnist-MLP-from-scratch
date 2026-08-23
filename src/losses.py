@@ -1,10 +1,10 @@
 """
-    categorical Cross-enthropy loss fuction and gradient
+    categorical Cross-Enthropy loss fuction and gradient
 """
 
 import numpy as np
 
-class Crossenthropy:
+class CrossEntropy:
     def __init__(self, eps:float = 1e-15):
         self.eps = eps
         self.y_pred = None

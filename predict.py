@@ -7,6 +7,7 @@ import numpy as np
 from src.activations import ReLU, Softmax
 from src.data import MNISTloader
 from src.layers import Dense
+from src.model import Sequential
 
 
 def load_trained_model(weights_path: str= 'mnist_mlp_weights.npz'):
@@ -15,27 +16,26 @@ def load_trained_model(weights_path: str= 'mnist_mlp_weights.npz'):
     print(f"[*] Loading weights  from '{weights_path}'...")
     weights = np.load(weights_path)
 
-    dense1 = Dense(in_features=784, out_features=128)
-    dense2 = Dense(in_features= 128, out_features=10)
+    num_layers = sum(1 for k in weights.files if k.startswith("W"))
 
-    dense1.W = weights["W1"]
-    dense1.b = weights["b1"]
-    dense2.W = weights["W2"]
-    dense2.b = weights["b2"]
+    layers = []
+    for i in range(num_layers):
+        W = weights[f"W{i}"]
+        b = weights[f"b{i}"]
+        dense = Dense(in_features=W.shape[0], out_features=W.shape[1])
+        dense.W = W 
+        dense.b = b 
+        layers.append(dense)
+        if i < num_layers -1 :
+            layers.append(ReLU())
+    layers.append(Softmax())
+        
+    return Sequential(layers)
 
-    return dense1, dense2 
-
-def predict(X: np.ndarray, dense1: Dense, dense2: Dense):
+def predict(X: np.ndarray, model: Sequential):
     "runs forward pass and returns predictions with scores"
 
-    relu = ReLU()
-    softmax = Softmax()
-
-    Z1 = dense1.forward(X)
-    A1 = relu.forward(Z1)
-    Z2 = dense2.forward(A1)
-    probs = softmax.forward(Z2)
-
+    probs = model.forward(X)
     predictions = np.argmax(probs, axis=1)
     confidence = np.max(probs, axis=1) * 100.0
 
@@ -44,8 +44,7 @@ def predict(X: np.ndarray, dense1: Dense, dense2: Dense):
 def visualize_random_samples(
     X_test: np.ndarray,
     y_test_raw: np.ndarray,
-    dense1: Dense,
-    dense2: Dense,
+    model: Sequential,
     num_samples: int =5,
 ):
     "selects random images from test set, predicts labels, and plots results"
@@ -54,7 +53,7 @@ def visualize_random_samples(
     sample_y = y_test_raw[indices]
 
     # predict
-    preds, confidence , _ = predict(sample_X, dense1, dense2)
+    preds, confidence , _ = predict(sample_X, model)
 
     #Plot results
     fig, axes = plt.subplots(1, num_samples, figsize=(13,3))
@@ -85,7 +84,7 @@ def visualize_random_samples(
 
 def main():
     # 1. restore trained model 
-    dense1, dense2 = load_trained_model("mnist_mlp_weights.npz")
+    model = load_trained_model("mnist_mlp_weights.npz")
 
     # 2. load test data 
     loader = MNISTloader()
@@ -95,7 +94,7 @@ def main():
     # 3. predict and Visualize 5 random samples 
     print("\n___ Running inference ___")
     visualize_random_samples(
-        X_test, y_test_raw, dense1, dense2, num_samples=5
+        X_test, y_test_raw, model, num_samples=5
     )
 
 

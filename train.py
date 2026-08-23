@@ -1,5 +1,6 @@
 "full training loop for MNIST neural network"
 
+import argparse
 import time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,9 +8,10 @@ import numpy as np
 # import custom build modules from src
 
 from src.activations import ReLU, Softmax
-from src.data import MNISTloader
+from src.data import MNISTloader, train_val_split
 from src.layers import Dense
-from src.losses import Crossenthropy
+from src.losses import CrossEntropy
+from src.model import Sequential
 from src.optimizers import SGD
 
 def compute_accuracy(y_pred_probs: np.ndarray, y_true: np.ndarray) -> float:
@@ -44,107 +46,94 @@ def plot_metrics(history: dict):
     plt.show()
 
 
-def main():
-    # Hyperparameters
-    EPOCHS = 10
-    BATCH_SIZE = 64
-    LEARNING_RATE = 0.1
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train an MLP on MNIST")
+    parser.add_argument("--epochs", type=int, default =10)
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--hidden-dims", type=int, nargs="+", default=[128],
+                        help="size of hidden layers, e.g. hidden-dims 256 128")
+    parser.add_argument("--seed", type=int, default=10)
+    parser.add_argument("--l2", type =float, default=0.0)
+    return parser.parse_args()
 
-    print("___ 1. Loding MNIST data ___")
-    # output: X:(N, 784) in range [0, 1], Y:one_hot encoded (N, 10)
+def build_model(input_dim, hidden_dims, output_dim):
+    "builds a sequential MLP with an arbitrary number of hidden layers"
+    layers = []
+    dims = [input_dim] + hidden_dims + [output_dim]
+    for i in range(len(dims)- 1):
+        layers.append(Dense(in_features=dims[i], out_features=dims[i+1]))
+        if i < len(dims) -2 :
+            layers.append(ReLU())
+    layers.append(Softmax())
+    return Sequential(layers)
+
+def main():
+    args = parse_args()
+    np.random.seed(args.seed)
+
+    print("___ 1.Loading MNIST data ___")
     loader = MNISTloader()
-    # extract one_hot encoded targets for training and testing
-    X_train, Y_train, _, X_test, Y_test, _ = loader.load_data() 
+    X_train, Y_train, _, X_test, Y_test, _ = loader.load_data()
+    X_train, Y_train, X_val, Y_val = train_val_split(X_train, Y_train, val_ratio = 0.1)
     num_samples = X_train.shape[0]
 
-    print("\n___ 2.Initializing Model Architecture ___")
-    # 784 (input) -> 128 (hidden) -> 10 (output)
-    dense1 = Dense(in_features = 784, out_features = 128)
-    relu = ReLU()
-    dense2 = Dense(in_features = 128, out_features= 10)
-    softmax = Softmax()
+    print("\n___ 2. Initializing Model Architecture ___")
+    model = build_model(input_dim=784, hidden_dims=args.hidden_dims, output_dim=10)
+    
+    loss_fn = CrossEntropy()
+    optimizer =SGD(lr=args.lr)
 
-    loss_fn = Crossenthropy()
-    optimizer = SGD(lr= LEARNING_RATE)
-
-    # history dictionary for tracking metrics 
     history = {"loss": [], "acc": []}
 
     print("\n___ 3. Starting training loop ___")
     start_time = time.time()
 
-    for epoch in range(1, EPOCHS + 1):
-        # Shuffle dataset every epoch 
+    for epoch in range(1, args.epochs +1):
         indices = np.arange(num_samples)
         np.random.shuffle(indices)
-        X_train_shuffled = X_train[indices]
-        Y_train_shuffled = Y_train[indices]
+        X_shuf, Y_shuf = X_train[indices], Y_train[indices]
 
-        running_loss = 0.0
-        running_acc = 0.0
-        num_batches = int(np.ceil(num_samples/ BATCH_SIZE))
-        
+        running_loss, running_acc = 0.0, 0.0
+        num_batches = int(np.ceil(num_samples / args.batch_size))
+
         for b in range(num_batches):
-            start_idx = b *BATCH_SIZE
-            end_idx = min(start_idx + BATCH_SIZE, num_samples)
+            s, e = b * args.batch_size, min((b + 1) * args.batch_size, num_samples)
+            X_batch, Y_batch = X_shuf[s:e], Y_shuf[s:e]
 
-            X_batch = X_train_shuffled[start_idx:end_idx]
-            Y_batch = Y_train_shuffled[start_idx:end_idx]
+            probs = model.forward(X_batch)
+            loss = loss_fn.forward(probs, Y_batch)
+            acc = compute_accuracy(probs, Y_batch)
 
-            #------------ Forward Pass ------------
-            Z1 = dense1.forward(X_batch)
-            A1 = relu.forward(Z1)
-            Z2 = dense2.forward(A1)
-            A2 = softmax.forward(Z2)
+            running_loss += loss
+            running_acc += acc
 
-            # Metrics
-            batch_loss = loss_fn.forward(A2, Y_batch)
-            batch_acc = compute_accuracy(A2, Y_batch)
-
-            running_loss += batch_loss
-            running_acc += batch_acc
-
-            #------------ Backward pass ------------
-            dZ2 = loss_fn.backward()
-            dA1 = dense2.backward(dZ2)
-            dZ1 = relu.backward(dA1)
-            _ = dense1.backward(dZ1)
-
-            #------------ Optimization ------------
-            optimizer.step([dense1, dense2])
-
-        # Record Epoch Metrics
+            dout = loss_fn.backward()
+            model.backward(dout, l2_lambda = args.l2 )
+            optimizer.step(model.trainable_layers())
+        
         epoch_loss = running_loss / num_batches
         epoch_acc = running_acc / num_batches
         history["loss"].append(epoch_loss)
         history["acc"].append(epoch_acc)
+        print(f"Epoch {epoch:02d}/{args.epochs:02d} | Loss: {epoch_loss:.4f} | Train acc: {epoch_acc:.2f}%")
+        val_probs = model.forward(X_val)
+        val_acc = compute_accuracy(val_probs, Y_val)
+        print(f"Val acc: {val_acc:.2f}%")
+        
+    print(f"\nTraining completed in {time.time() - start_time:.2f} seconds")
 
-        print(f"Epoch {epoch:02d}/{EPOCHS:02d} | Loss: {epoch_loss:0.4f} | Train Acc: {epoch_acc:.2f}%")
-    total_time = time.time() - start_time 
-    print(f"\n Training completed in {total_time:.2f} seconds")
-
-    #------------ Evluation on test set ------------
-    print("\n___ 4. Evluating on Test set ___")
-    Z1_test = dense1.forward(X_test)
-    A1_test = relu.forward(Z1_test)
-    Z2_test = dense2.forward(A1_test)
-    A2_test = softmax.forward(Z2_test)
-
-    test_acc = compute_accuracy(A2_test, Y_test)
+    print("\n___ 4. Evaluating on Test set ___")
+    test_probs = model.forward(X_test)
+    test_acc = compute_accuracy(test_probs, Y_test)
     print(f"Test set Accuracy: {test_acc:.2f}%")
-
-    # ------------ Sqve model weights ------------
-    np.savez(
-        "mnist_mlp_weights.npz",
-        W1=dense1.W,
-        b1=dense1.b,
-        W2=dense2.W,
-        b2=dense2.b,
-    )
-
+    
+    weights = {}
+    for i, layer in enumerate(model.trainable_layers()):
+        weights[f"W{i}"] = layer.W 
+        weights[f"b{i}"] = layer.b 
+    np.savez("mnist_mlp_weights.npz", **weights)
     print("[+] Model weights saved to 'mnist_mlp_weights.npz'")
-
-    #------- plot metrics
 
     plot_metrics(history)
 

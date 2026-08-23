@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.npz
+*.png
+.venv/
+venv/
+.MLP/
