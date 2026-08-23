@@ -15,7 +15,8 @@ def run_sklearn_benchmark(X_train, y_train, X_test, y_test, hidden_dims=(128,), 
         batch_size = 64,
         max_iter=epochs,
         shuffle=True,
-        random_state=10
+        random_state=10,
+        alpha=1e-4
     )
 
     start = time.time()
@@ -37,7 +38,7 @@ def main():
 
     print("\n___ Results ___")
     print(f"sklearn MLPClassifier : \n test acc: {sk_acc:.2f}% | Train time: {sk_time:.2f}s")
-    print("our model: \n test acc : 97.46% | train time : 106.40s ")
+    print("our model: \n test acc : 97.41% | train time : 107.08s ")
 
 if __name__ == "__main__":
     main()
