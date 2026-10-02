@@ -101,5 +101,5 @@ Benchmark against sklearn:
     ├── gradient_check.py
     └── .github/workflows/   # CI (tests run automatically on push)
 
-## What I learned
-when i started this project i thought the hardest part would be the implementation of mathematical functions but surprisingly that was the easiest part becouse every layer just had a function and forward and backward relation to implement. the hard part of this project waas to connect all these layers to each other and test them alltogether to see if they even work right or not. before this project i saw backpropagation as a very complicated process to perform but as i wrote different parts of the code i realised its takes only a few lines to work. 
+## Ai usage
+app.py tests and gradient_check.py files were made by claude
